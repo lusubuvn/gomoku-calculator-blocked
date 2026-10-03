@@ -1,0 +1,60 @@
+name: Giai nen ma nguon
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Tai ma nguon
+        uses: actions/checkout@v4
+
+      - name: Giai nen ZIP
+        shell: bash
+        run: |
+          set -e
+
+          ZIP="gomoku-calculator-blocked-source.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "Khong thay ZIP, ket thuc."
+            exit 0
+          fi
+
+          rm -rf extracted
+          mkdir -p extracted
+          unzip -q "$ZIP" -d extracted
+
+          SRC="extracted/gomoku-calculator-blocked-source"
+
+          if [ ! -d "$SRC" ]; then
+            echo "Khong tim thay $SRC"
+            exit 1
+          fi
+
+          cp -a "$SRC/." .
+
+          rm -rf extracted
+          rm -f "$ZIP"
+
+      - name: Luu ma nguon
+        shell: bash
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Khong co thay doi."
+          else
+            git commit -m "Giai nen ma nguon Gomoku Calculator"
+            git push
+          fi
