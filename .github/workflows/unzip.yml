@@ -31,6 +31,7 @@ jobs:
 
           rm -rf extracted
           mkdir -p extracted
+
           unzip -q "$ZIP" -d extracted
 
           SRC="extracted/gomoku-calculator-blocked-source"
@@ -40,7 +41,11 @@ jobs:
             exit 1
           fi
 
-          cp -a "$SRC/." .
+          # Chi sao chep ma nguon, khong sao chep workflow
+          rsync -a \
+            --exclude='.github/' \
+            --exclude='*.zip' \
+            "$SRC/" ./
 
           rm -rf extracted
           rm -f "$ZIP"
@@ -50,6 +55,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
           git add -A
 
           if git diff --cached --quiet; then
