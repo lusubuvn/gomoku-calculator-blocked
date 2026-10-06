@@ -1,0 +1,31 @@
+--- a/Rapfi/command/gomocup.cpp
++++ b/Rapfi/command/gomocup.cpp
+@@ -521,6 +521,7 @@
+     // Read position sequence
+     enum SideFlag { SELF = 1, OPPO = 2, WALL = 3 };
+     std::vector<std::pair<Pos, SideFlag>> position;
++    std::vector<Pos> walls;
+ 
+     while (true) {
+         std::string coordStr;
+@@ -541,13 +542,19 @@
+         }
+ 
+         if (pos.has_value()) {
+-            if (color == SELF || color == OPPO || color == WALL && *pos != Pos::NONE)
++            if (color == SELF || color == OPPO || color == WALL && *pos != Pos::NONE) {
+                 position.emplace_back(*pos, static_cast<SideFlag>(color));
++                if (color == WALL)
++                    walls.push_back(*pos);
++            }
+             else
+                 ERRORL("Color is not a valid value, must be one of [1, 2, 3].");
+         }
+     }
+ 
++    // Rebuild the board with real WALL cells before placing stones.
++    board->newGame(options.rule, walls);
++
+     // The first move (either real move or pass) is always considered as BLACK
+     Color selfColor = BLACK;
+     for (auto [pos, side] : position) {

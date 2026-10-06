@@ -1,0 +1,127 @@
+name: Build and Deploy Gomoku Calculator
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.56
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16.20.2
+          cache: npm
+
+      - name: Clone Rapfi
+        run: |
+          git clone --depth 1 --recurse-submodules \
+            https://github.com/dhbloo/rapfi.git rapfi
+
+      - name: Patch Rapfi for real blocked cells
+        shell: bash
+        run: |
+          set -e
+          cd rapfi
+          patch -p1 < ../rapfi-board.patch
+          patch -p1 < ../rapfi-board-h.patch
+          patch -p1 < ../rapfi-gomocup.patch
+
+      - name: Build Rapfi single-thread SIMD full NNUE
+        shell: bash
+        run: |
+          set -e
+
+          BUILD_DIR="rapfi/Rapfi/build/wasm-single-simd128"
+
+          mkdir -p "$BUILD_DIR"
+          cd "$BUILD_DIR"
+
+          emcmake cmake ../.. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNO_COMMAND_MODULES=ON \
+            -DNO_MULTI_THREADING=ON \
+            -DUSE_WASM_SIMD=ON \
+            -DUSE_WASM_SIMD_RELAXED=OFF
+
+          emmake cmake --build . --parallel 2
+
+      - name: Prepare full NNUE engine
+        shell: bash
+        run: |
+          set -e
+
+          ENGINE_DIR="rapfi/Rapfi/build/wasm-single-simd128"
+
+          rm -rf public/build
+          mkdir -p public/build
+
+          cp "$ENGINE_DIR/rapfi-single-simd128.js" \
+             public/build/rapfi-single-simd128.js
+
+          cp "$ENGINE_DIR/rapfi-single-simd128.wasm" \
+             public/build/rapfi-single-simd128.wasm
+
+          DATA_FILE="$(find "$ENGINE_DIR" -maxdepth 1 -type f -name '*.data' | head -n 1)"
+
+          if [ -z "$DATA_FILE" ]; then
+            echo "Khong tim thay rapfi.data - NNUE khong duoc dong goi."
+            exit 1
+          fi
+
+          cp "$DATA_FILE" public/build/rapfi.data
+
+          DATA_BYTES="$(stat -c %s public/build/rapfi.data)"
+          echo "rapfi.data size: ${DATA_BYTES} bytes"
+
+          if [ "$DATA_BYTES" -lt 1000000 ]; then
+            echo "rapfi.data qua nho; build nay co the khong chua NNUE weights."
+            exit 1
+          fi
+
+          echo "===== Full NNUE engine files ====="
+          ls -lh public/build
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

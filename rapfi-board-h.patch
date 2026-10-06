@@ -1,0 +1,37 @@
+--- a/Rapfi/game/board.h
++++ b/Rapfi/game/board.h
+@@ -142,7 +142,7 @@
+     /// Initialize the board to an empty board state of rule R.
+     /// @tparam R Rule to initialize the board.
+     template <Rule R>
+-    void newGame();
++    void newGame(const std::vector<Pos> &walls = {});
+ 
+     /// Play a move and incrementally update the board state.
+     /// @param pos Pos to put the next stone. Pos::PASS is allowed.
+@@ -160,7 +160,7 @@
+     void undo();
+ 
+     /// A dynamic dispatch version of newGame().
+-    void newGame(Rule rule);
++    void newGame(Rule rule, const std::vector<Pos> &walls = {});
+     /// A dynamic dispatch version of move().
+     void move(Rule rule, Pos pos);
+     /// A dynamic dispatch version of undo().
+@@ -538,12 +538,12 @@
+     }
+ }
+ 
+-inline void Board::newGame(Rule rule)
++inline void Board::newGame(Rule rule, const std::vector<Pos> &walls)
+ {
+     switch (rule) {
+-    case FREESTYLE: return newGame<FREESTYLE>();
+-    case STANDARD: return newGame<STANDARD>();
+-    case RENJU: return newGame<RENJU>();
++    case FREESTYLE: return newGame<FREESTYLE>(walls);
++    case STANDARD: return newGame<STANDARD>(walls);
++    case RENJU: return newGame<RENJU>(walls);
+     default: assert(false && "invalid rule");
+     }
+ }
