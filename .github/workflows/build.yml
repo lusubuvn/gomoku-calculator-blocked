@@ -30,10 +30,16 @@ jobs:
           node-version: 16.20.2
           cache: npm
 
-      - name: Clone Rapfi
+      - name: Clone pinned Rapfi version
         run: |
-          git clone --depth 1 --recurse-submodules \
-            https://github.com/dhbloo/rapfi.git rapfi
+          set -e
+          mkdir rapfi
+          cd rapfi
+          git init
+          git remote add origin https://github.com/dhbloo/rapfi.git
+          git fetch --depth 1 origin 1387d11312190ec66665d361ff07a7c70221b78a
+          git checkout --detach FETCH_HEAD
+          git submodule update --init --recursive --depth 1
 
       - name: Patch Rapfi for real blocked cells
         shell: bash
@@ -42,6 +48,7 @@ jobs:
           cd rapfi
           patch -p1 < ../rapfi-board.patch
           patch -p1 < ../rapfi-board-h.patch
+          patch -p1 < ../rapfi-wall-hash.patch
           patch -p1 < ../rapfi-gomocup.patch
 
       - name: Build Rapfi single-thread SIMD full NNUE

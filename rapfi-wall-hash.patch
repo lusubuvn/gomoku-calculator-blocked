@@ -1,0 +1,41 @@
+diff --git a/Rapfi/core/hash.cpp b/Rapfi/core/hash.cpp
+--- a/Rapfi/core/hash.cpp
++++ b/Rapfi/core/hash.cpp
+@@ -28,5 +28,6 @@
+ HashKey zobrist[SIDE_NB][FULL_BOARD_CELL_COUNT];
+ HashKey zobristSide[SIDE_NB];
++HashKey zobristWall[FULL_BOARD_CELL_COUNT];
+
+ /// Fill the Zobrist tables with a deterministic stream of pseudo-random keys.
+ static void initZobrist(uint64_t seed)
+@@ -41,4 +41,7 @@
+
+     zobristSide[BLACK] = prng();
+     zobristSide[WHITE] = prng();
++
++    for (int i = 0; i < FULL_BOARD_CELL_COUNT; i++)
++        zobristWall[i] = prng();
+ }
+diff --git a/Rapfi/core/hash.h b/Rapfi/core/hash.h
+--- a/Rapfi/core/hash.h
++++ b/Rapfi/core/hash.h
+@@ -83,5 +83,8 @@
+ extern HashKey zobrist[SIDE_NB][FULL_BOARD_CELL_COUNT];
+ /// Per-side-to-move Zobrist key; XOR'd into the board hash when the side to move flips.
+ extern HashKey zobristSide[SIDE_NB];
+
++/// Zobrist key for each permanent wall cell.
++extern HashKey zobristWall[FULL_BOARD_CELL_COUNT];
++
+ }  // namespace Hash
+diff --git a/Rapfi/game/board.cpp b/Rapfi/game/board.cpp
+--- a/Rapfi/game/board.cpp
++++ b/Rapfi/game/board.cpp
+@@ -157,4 +157,6 @@
+-        if (std::find(walls.begin(), walls.end(), i) != walls.end())
++        if (std::find(walls.begin(), walls.end(), i) != walls.end()) {
++            currentZobristKey ^= Hash::zobristWall[i];
+             continue;
++        }
+
+         // Seed empty cells with both color bits set (encoding 11); walls keep 00. Placing a stone
