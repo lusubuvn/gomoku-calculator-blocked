@@ -1,0 +1,43 @@
+--- a/Rapfi/game/board.cpp
++++ b/Rapfi/game/board.cpp
+@@ -41,7 +41,7 @@
+ {
+     // Every playable cell is either empty or holds a stone (passes occupy none), so the empty
+     // bitboard's population must equal the playable cells minus the stones placed.
+-    if (board->emptyCells().count() != board->cellCount() - board->nonPassMoveCount())
++    if (board->emptyCells().count() != board->onBoard().count() - board->nonPassMoveCount())
+         return false;
+ 
+     int p4[SIDE_NB][PATTERN4_NB] = {0};
+@@ -131,7 +131,7 @@
+ }
+ 
+ template <Rule R>
+-void Board::newGame()
++void Board::newGame(const std::vector<Pos> &walls)
+ {
+     // Reset to an empty board, then compute every empty cell's patterns from scratch once;
+     // all later positions are reached incrementally through move()/undo(). Wall cells' array
+@@ -157,6 +157,9 @@
+         if (!i.isInBoard(boardSize, boardSize))
+             continue;
+ 
++        if (std::find(walls.begin(), walls.end(), i) != walls.end())
++            continue;
++
+         // Seed empty cells with both color bits set (encoding 11); walls keep 00. Placing a stone
+         // later toggles one bit, leaving the opposite color's bit set (black 10, white 01).
+         setBitKey(i, BLACK);
+@@ -205,9 +208,9 @@
+         evaluator_->initEmptyBoard();
+ }
+ 
+-template void Board::newGame<FREESTYLE>();
+-template void Board::newGame<STANDARD>();
+-template void Board::newGame<RENJU>();
++template void Board::newGame<FREESTYLE>(const std::vector<Pos> &walls);
++template void Board::newGame<STANDARD>(const std::vector<Pos> &walls);
++template void Board::newGame<RENJU>(const std::vector<Pos> &walls);
+ 
+ template <Rule R, Board::MoveType MT>
+ void Board::move(Pos pos)
