@@ -1,0 +1,91 @@
+--- a/Rapfi/game/board.cpp
++++ b/Rapfi/game/board.cpp
+@@ -286,7 +286,33 @@
+
+             Pattern2x      *p2x    = pattern2xs[posi];
+             const Pattern2x oldP2x = p2x[dir];
+-            const Pattern2x newP2x = PatternConfig::lookupPattern<R>(bitKey[dir]);
++            uint64_t lookupKey = bitKey[dir];
++            {
++                constexpr uint64_t MASK = (uint64_t(1) << (2 * L)) - 1;
++                uint64_t lo = lookupKey & MASK;
++                uint64_t hi = (lookupKey >> (2 * L + 2)) & MASK;
++
++                for (int k = 0; k < L; ++k) {
++                    int shift = 2 * (L - 1 - k);
++                    if (((lo >> shift) & 3) == 0) {
++                        lo &= ~((uint64_t(1) << shift) - 1);
++                        break;
++                    }
++                }
++
++                for (int k = 0; k < L; ++k) {
++                    int shift = 2 * k;
++                    if (((hi >> shift) & 3) == 0) {
++                        hi &= (uint64_t(1) << (shift + 2)) - 1;
++                        break;
++                    }
++                }
++
++                uint64_t center = lookupKey & (uint64_t(3) << (2 * L));
++                lookupKey = lo | center | (hi << (2 * L + 2));
++            }
++
++            const Pattern2x newP2x = PatternConfig::lookupPattern<R>(lookupKey);
+             const uint8_t   p4Pair = pattern4x2[posi];
+
+             if (newP2x == oldP2x) {
+--- a/Rapfi/game/board.h
++++ b/Rapfi/game/board.h
+@@ -525,17 +525,42 @@
+ {
+     assert(dir >= 0 && dir < 4);
+
+-    constexpr int L = PatternConfig::HalfLineLen<R>;
+-    int           x = pos.x() + BOARD_BOUNDARY;
+-    int           y = pos.y() + BOARD_BOUNDARY;
+-
++    constexpr int H = PatternConfig::HalfLineLen<R>;
++    int x = pos.x() + BOARD_BOUNDARY;
++    int y = pos.y() + BOARD_BOUNDARY;
++
++    uint64_t key;
+     switch (dir) {
+     default:
+-    case 0: return rotr(bitKey0[y], 2 * (x - L));
+-    case 1: return rotr(bitKey1[x], 2 * (y - L));
+-    case 2: return rotr(bitKey2[x + y], 2 * (x - L));
+-    case 3: return rotr(bitKey3[FULL_BOARD_SIZE - 1 - x + y], 2 * (x - L));
+-    }
++    case 0: key = rotr(bitKey0[y], 2 * (x - H)); break;
++    case 1: key = rotr(bitKey1[x], 2 * (y - H)); break;
++    case 2: key = rotr(bitKey2[x + y], 2 * (x - H)); break;
++    case 3: key = rotr(bitKey3[FULL_BOARD_SIZE - 1 - x + y], 2 * (x - H)); break;
++    }
++
++    constexpr uint64_t MASK = (uint64_t(1) << (2 * H)) - 1;
++    uint64_t lo = key & MASK;
++    uint64_t hi = (key >> (2 * H + 2)) & MASK;
++
++    // A wall hides every cell farther from the center.
++    for (int i = 0; i < H; ++i) {
++        int shift = 2 * (H - 1 - i);
++        if (((lo >> shift) & 3) == 0) {
++            lo &= ~((uint64_t(1) << shift) - 1);
++            break;
++        }
++    }
++
++    for (int i = 0; i < H; ++i) {
++        int shift = 2 * i;
++        if (((hi >> shift) & 3) == 0) {
++            hi &= (uint64_t(1) << (shift + 2)) - 1;
++            break;
++        }
++    }
++
++    uint64_t center = key & (uint64_t(3) << (2 * H));
++    return lo | center | (hi << (2 * H + 2));
+ }
+
+ inline void Board::newGame(Rule rule, const std::vector<Pos> &walls)

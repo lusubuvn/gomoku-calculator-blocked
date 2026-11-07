@@ -50,6 +50,7 @@ jobs:
           patch -p1 < ../rapfi-board-h.patch
           patch -p1 < ../rapfi-wall-hash.patch
           patch -p1 < ../rapfi-gomocup.patch
+          patch -p1 < ../rapfi-wall-lines.patch
 
       - name: Build Rapfi single-thread SIMD full NNUE
         shell: bash
